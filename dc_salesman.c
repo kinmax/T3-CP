@@ -149,7 +149,8 @@ unsigned int fat ( int number ) {
 int **alloc_2d_int(int rows, int cols) {
     int *data = (int *)malloc(rows*cols*sizeof(int));
     int **array= (int **)malloc(rows*sizeof(int*));
-    for (int i=0; i<rows; i++)
+    int i;
+    for (i=0; i<rows; i++)
         array[i] = &(data[cols*i]);
 
     return array;
