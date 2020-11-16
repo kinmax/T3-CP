@@ -146,6 +146,7 @@ unsigned int fat ( int number ) {
     return ( soma );
 }  /* fat */
 
+// rotina de alocação contígua para receber e enviar matrizes
 int **alloc_2d_int(int rows, int cols) {
     int *data = (int *)malloc(rows*cols*sizeof(int));
     int **array= (int **)malloc(rows*sizeof(int*));
@@ -251,14 +252,15 @@ int main(int argc, char **argv) {
     }
     else // não é hora de conquistar -> devo dividir
     {
-        int work_size_to_send = (work_size-DELTA)/2;
-        int **work_to_left = alloc_2d_int(work_size_to_send, NUM_CITIES);
-        int **work_to_right = alloc_2d_int((work_size-DELTA)-work_size_to_send, NUM_CITIES);
-        SOLUTION left_received;
-        SOLUTION right_received;
-        int right_rank, left_rank;
+        int work_size_to_send = (work_size-DELTA)/2; // vou pegar DELTA para mim
+        int **work_to_left = alloc_2d_int(work_size_to_send, NUM_CITIES); // trabalho a ser enviado ao filho da esquerda
+        int **work_to_right = alloc_2d_int((work_size-DELTA)-work_size_to_send, NUM_CITIES); // trabalho a ser enviado ao filho da esquerda
+        SOLUTION left_received; // solução recebida do filho da esquerda
+        SOLUTION right_received; // solução recebida do filho da direita
+        int right_rank, left_rank; // rankings dos filhos da direita e esquerda
         left_rank = (my_rank*2)+1;
         right_rank = (my_rank*2)+2;
+        // monto os trabalhos dos filhos
         for(i = 0; i < work_size_to_send; i++)
         {
             for(j = 0; j < NUM_CITIES; j++)
@@ -273,9 +275,11 @@ int main(int argc, char **argv) {
                 work_to_right[i][j] = received[i+work_size_to_send][j];
             }
         }
+        // envio para os filhos
         MPI_Send(&work_to_left[0][0], work_size_to_send*NUM_CITIES, MPI_INT, left_rank, 0, MPI_COMM_WORLD); // mando pro filho da esquerda
         MPI_Send(&work_to_right[0][0], ((work_size-DELTA)-work_size_to_send)*NUM_CITIES, MPI_INT, right_rank, 0, MPI_COMM_WORLD); // mando pro filho da direita
 
+        // faço a minha parte
         double dist;
         for(i = (work_size-DELTA); i < work_size; i++)
         {
@@ -291,9 +295,11 @@ int main(int argc, char **argv) {
             }
         }
 
+        // recebo a resposta dos filhos
         MPI_Recv(&left_received, NUM_CITIES, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho esquerdo
         MPI_Recv(&right_received, NUM_CITIES, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho direito
 
+        // vejo qual a melhor solução: a minha, a do filho da direita ou a do filho da esquerda
         if(calc_total_dist(right_received) < best_cost)
         {
             for(i = 0; i < NUM_CITIES; i++)

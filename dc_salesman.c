@@ -251,14 +251,15 @@ int main(int argc, char **argv) {
     }
     else // não é hora de conquistar -> devo dividir
     {
-        int work_size_to_send = work_size/2;
-        int **work_to_left = alloc_2d_int(work_size_to_send, NUM_CITIES);
-        int **work_to_right = alloc_2d_int(work_size-work_size_to_send, NUM_CITIES);
-        SOLUTION left_received;
-        SOLUTION right_received;
-        int right_rank, left_rank;
+        int work_size_to_send = work_size/2; // tamanho do trabalho a ser enviado a cada filho
+        int **work_to_left = alloc_2d_int(work_size_to_send, NUM_CITIES); // trabalho para o filho da esquerda
+        int **work_to_right = alloc_2d_int(work_size-work_size_to_send, NUM_CITIES); // trabalho para o filho da esquerda
+        SOLUTION left_received; // resposta do filho da esquerda
+        SOLUTION right_received; // resposta do filho da direita
+        int right_rank, left_rank; // rankings dos filhos
         left_rank = (my_rank*2)+1;
         right_rank = (my_rank*2)+2;
+        // monto o trabalho dos dois filhos
         for(i = 0; i < work_size_to_send; i++)
         {
             for(j = 0; j < NUM_CITIES; j++)
@@ -273,12 +274,15 @@ int main(int argc, char **argv) {
                 work_to_right[i][j] = received[i+work_size_to_send][j];
             }
         }
+        // envio para eles
         MPI_Send(&work_to_left[0][0], work_size_to_send*NUM_CITIES, MPI_INT, left_rank, 0, MPI_COMM_WORLD); // mando pro filho da esquerda
         MPI_Send(&work_to_right[0][0], (work_size-work_size_to_send)*NUM_CITIES, MPI_INT, right_rank, 0, MPI_COMM_WORLD); // mando pro filho da direita
 
+        // recebo as respostas
         MPI_Recv(&left_received, NUM_CITIES, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho esquerdo
         MPI_Recv(&right_received, NUM_CITIES, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho direito
 
+        // vejo quem retornou o menor caminho
         if(calc_total_dist(right_received) < calc_total_dist(left_received))
         {
             for(i = 0; i < NUM_CITIES; i++)
