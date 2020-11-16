@@ -251,9 +251,9 @@ int main(int argc, char **argv) {
     }
     else // não é hora de conquistar -> devo dividir
     {
-        int work_size_to_send = work_size/3;
+        int work_size_to_send = (work_size-DELTA)/2;
         int **work_to_left = alloc_2d_int(work_size_to_send, NUM_CITIES);
-        int **work_to_right = alloc_2d_int(work_size_to_send, NUM_CITIES);
+        int **work_to_right = alloc_2d_int((work_size-DELTA)-work_size_to_send, NUM_CITIES);
         SOLUTION left_received;
         SOLUTION right_received;
         int right_rank, left_rank;
@@ -266,7 +266,7 @@ int main(int argc, char **argv) {
                 work_to_left[i][j] = received[i][j];
             }
         }
-        for(i = 0; i < work_size_to_send; i++)
+        for(i = 0; i < (work_size-DELTA)-work_size_to_send; i++)
         {
             for(j = 0; j < NUM_CITIES; j++)
             {
@@ -274,32 +274,12 @@ int main(int argc, char **argv) {
             }
         }
         MPI_Send(&work_to_left[0][0], work_size_to_send*NUM_CITIES, MPI_INT, left_rank, 0, MPI_COMM_WORLD); // mando pro filho da esquerda
-        MPI_Send(&work_to_right[0][0], (work_size_to_send)*NUM_CITIES, MPI_INT, right_rank, 0, MPI_COMM_WORLD); // mando pro filho da direita
-
-        MPI_Recv(&left_received, NUM_CITIES, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho esquerdo
-        MPI_Recv(&right_received, NUM_CITIES, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho direito
-
-        if(calc_total_dist(right_received) < calc_total_dist(left_received))
-        {
-            for(i = 0; i < NUM_CITIES; i++)
-            {
-                best[i] = right_received[i];
-            }
-            best_cost = calc_total_dist(right_received);
-        }
-        else
-        {
-            for(i = 0; i < NUM_CITIES; i++)
-            {
-                best[i] = left_received[i];
-            }
-            best_cost = calc_total_dist(left_received);
-        }
+        MPI_Send(&work_to_right[0][0], ((work_size-DELTA)-work_size_to_send)*NUM_CITIES, MPI_INT, right_rank, 0, MPI_COMM_WORLD); // mando pro filho da direita
 
         double dist;
-        for(i = 0; i < work_size-work_size_to_send*2; i++)
+        for(i = (work_size-DELTA); i < work_size; i++)
         {
-            perm_solution(received[i+work_size_to_send*2], 2, NUM_CITIES-1);
+            perm_solution(received[i], 2, NUM_CITIES-1);
             dist = calc_total_dist(final_solution);
             if(dist < best_cost)
             {
@@ -309,6 +289,26 @@ int main(int argc, char **argv) {
                     best[j] = final_solution[j];
                 }
             }
+        }
+
+        MPI_Recv(&left_received, NUM_CITIES, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho esquerdo
+        MPI_Recv(&right_received, NUM_CITIES, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebe tarefa do filho direito
+
+        if(calc_total_dist(right_received) < best_cost)
+        {
+            for(i = 0; i < NUM_CITIES; i++)
+            {
+                best[i] = right_received[i];
+            }
+            best_cost = calc_total_dist(right_received);
+        }
+        if(calc_total_dist(left_received) < best_cost)
+        {
+            for(i = 0; i < NUM_CITIES; i++)
+            {
+                best[i] = left_received[i];
+            }
+            best_cost = calc_total_dist(left_received);
         }
         
     }  
